@@ -1,0 +1,61 @@
+$version: "0.1.0"
+$learn_more: https://data-dict.tidyverse.org/
+name: zanzibar-retail-prices
+label: Zanzibar retail price comparison
+description: |
+  A Parquet table of four retail produce prices transcribed from the 16–20 June
+  2025 bulletin. Each row gives the weekly average price of one crop at
+  Mwanakwerekwe or Sabasaba.
+details: |
+  The Ministry of Agriculture, United Republic of Tanzania, published the
+  figures in [Table 6 of the bulletin](https://www.kilimo.go.tz/uploads/documents/en-1750672371-Weekly%20Market%20Bulletin%2016-20%20June%2C%202025.pdf#page=8),
+  citing the Tanzania Horticultural Association (TAHA). The bulletin gives no
+  data licence for these figures.
+  The `zanzibar-retail.csv` transcription uses the current-week tomato and
+  onion figures. It adds the reporting dates, currency, unit and price type
+  from the table heading, reorders the Sabasaba label and pluralises Tomato.
+  The build reads the CSV, parses the reporting dates as calendar dates and
+  writes every row and column to Parquet. The CSV's SHA-256 is
+  `60db0815b42b4b262263bb9133e9e19db05a0f7f6d6a39934ecd04c2fcf68d87`.
+  The version hash is the SHA-256 of `zanzibar_retail.parquet`.
+origin: ../../scripts/build_parquet.py
+version:
+  hash: 1440a9e6fc5b59efd00c2c2c2af6269b37ef61264e7be3211308bddbcd11be6e
+tables:
+  - name: zanzibar_retail
+    source:
+      parquet: zanzibar_retail.parquet
+    columns:
+      - name: week_start
+        type: date
+        description: First day of the reporting period.
+        range: ["2025-06-16", "2025-06-16"]
+      - name: week_end
+        type: date
+        description: Last day of the reporting period.
+        range: ["2025-06-20", "2025-06-20"]
+      - name: market
+        type: enum
+        description: Market name and location.
+        values: ["Mwanakwerekwe, Zanzibar", "Sabasaba, Dodoma"]
+      - name: commodity
+        type: enum
+        description: Produce priced in the market.
+        values: [Tomatoes, Onions]
+      - name: unit
+        type: enum
+        description: Quantity used for each price quote.
+        values: [KG]
+      - name: pricetype
+        type: enum
+        description: Trading level for the quote.
+        values: [Retail]
+      - name: currency
+        type: enum
+        description: Currency of the price.
+        values: [TZS]
+      - name: price
+        type: number(quantity)
+        units: TZS per kg
+        description: Average reported retail price for the specified week.
+        range: [1300, 2200]

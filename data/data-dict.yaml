@@ -1,0 +1,205 @@
+$version: "0.1.0"
+$learn_more: https://data-dict.tidyverse.org/
+name: tanzania-food-prices
+label: Tanzania food prices
+description: |
+  Parquet tables generated from the World Food Programme's Tanzania price and
+  market CSVs, including the subset used in the PyCon Tanzania workshop.
+details: |
+  The World Food Programme (WFP) published the source tables through the
+  [Humanitarian Data Exchange](https://data.humdata.org/dataset/wfp-food-prices-for-united-republic-of-tanzania)
+  under [CC BY 3.0 IGO](https://creativecommons.org/licenses/by/3.0/igo/).
+  Contributing sources include EWURA, FPMA, MITI, MITM and the Regional
+  Agricultural Trade Intelligence Network via FAO GIEWS.
+  The version hash is the SHA-256 of the three Parquet files concatenated in
+  table order.
+origin: ../scripts/build_parquet.py
+version:
+  hash: 07c408a2d9a07e162016ac2d47a007cf09c3099d8c93ddc66280b8bc0c388f3e
+tables:
+  - name: wfp_prices
+    label: WFP price observations
+    description: |
+      Each row is a price observation for one commodity, market and date.
+      The source contains 67,999 observations and includes both retail and wholesale prices.
+    details: |
+      The build reads the original [WFP price CSV](https://data.humdata.org/dataset/5090d858-a300-49fe-a953-4ec4e3526fc2/resource/2ff38c1a-a8f7-45b2-9209-090200c859da/download/wfp_food_prices_tza.csv),
+      stored as `source/wfp_food_prices_tza.csv`. It parses observation dates
+      as calendar dates and writes every row and column to Parquet.
+      The CSV's SHA-256 is `55324dfa1923f73b7e795d18c1ed45496ca2bc4be4d3e6ac98d17472a49fd489`.
+    source:
+      parquet: wfp_prices.parquet
+    columns:
+      - name: date
+        type: date
+        description: Date recorded by WFP for the price observation.
+        range: ["2006-01-15", "2026-09-15"]
+      - name: admin1
+        type: string
+        description: First-level administrative area recorded with the observation.
+        examples: [Arusha, Iringa, Mwanza]
+      - name: admin2
+        type: string
+        description: Second-level administrative area recorded with the observation.
+        examples: [Arusha Urban, Babati Urban, Bukoba Urban]
+      - name: market
+        type: string
+        description: Market label recorded with the observation.
+        examples: [Dar Es Salaam, Iringa Urban, Mwanza]
+      - name: market_id
+        type: number(id)
+        description: WFP identifier for the market series.
+        examples: [83, 85, 92, 2800]
+        constraints: [foreign_key]
+      - name: latitude
+        type: number(quantity)
+        units: degrees north
+        description: Latitude assigned to the market in the price data.
+        range: [-10.78, -1.33]
+      - name: longitude
+        type: number(quantity)
+        units: degrees east
+        description: Longitude assigned to the market in the price data.
+        range: [29.63, 40.18]
+      - name: category
+        type: enum
+        description: WFP commodity group.
+        values: [cereals and tubers, "meat, fish and eggs", miscellaneous food, non-food, oil and fats, pulses and nuts, vegetables and fruits]
+      - name: commodity
+        type: string
+        description: Commodity label as recorded by WFP.
+        examples: [Maize, Rice, Beans, Fuel (diesel)]
+      - name: commodity_id
+        type: number(id)
+        description: WFP identifier for the commodity.
+        examples: [51, 52, 1041]
+      - name: unit
+        type: enum
+        description: Quantity or volume the price buys.
+        values: [100 KG, KG, L, MT]
+      - name: priceflag
+        type: enum
+        description: WFP flag for how the price was obtained. This snapshot contains observed prices.
+        values: [actual]
+      - name: pricetype
+        type: enum
+        description: Trading level for the quote.
+        values: [Retail, Wholesale]
+      - name: currency
+        type: enum
+        description: Currency of the local-currency price.
+        values: [TZS]
+      - name: price
+        type: number(quantity)
+        units: TZS per quoted unit
+        description: Nominal price in the currency and for the quantity given on the same row.
+        range: [183.8, 3000000]
+      - name: usdprice
+        type: number(quantity)
+        units: USD per quoted unit
+        description: US-dollar equivalent of the same quote.
+        range: [0.08, 1296.46]
+
+  - name: market_registry
+    label: WFP market registry
+    description: |
+      One row per WFP market identifier in the Tanzania registry. The 123 entries
+      include markets with no observations in this price snapshot.
+    details: |
+      The build reads the original [WFP market CSV](https://data.humdata.org/dataset/5090d858-a300-49fe-a953-4ec4e3526fc2/resource/12a46292-fef2-412e-9c19-0420028eff0d/download/wfp_markets_tza.csv),
+      stored as `source/wfp_markets_tza.csv`, and writes every row and column to
+      Parquet. The CSV's SHA-256 is `082943409e1bd661e864f69cc9a9178a7ad21eae9799e76e1e272bfea08d8335`.
+    source:
+      parquet: market_registry.parquet
+    columns:
+      - name: market_id
+        type: number(id)
+        description: WFP identifier for the market.
+        examples: [83, 85, 92, 2800, 3820]
+        constraints: [primary_key]
+      - name: market
+        type: string
+        description: Market label in the registry.
+        examples: [Iringa Urban, Mwanza, Darajani]
+      - name: countryiso3
+        type: enum
+        description: Three-letter ISO country code.
+        values: [TZA]
+      - name: admin1
+        type: string
+        description: First-level administrative area in the registry.
+        examples: [Iringa, Mwanza, Mjini Magharibi]
+      - name: admin2
+        type: string
+        description: Second-level administrative area in the registry.
+        examples: [Arusha Urban, Babati Urban, Mjini]
+      - name: latitude
+        type: number(quantity)
+        units: degrees north
+        description: Market latitude as listed in the registry.
+        range: [-10.99, -1.33]
+      - name: longitude
+        type: number(quantity)
+        units: degrees east
+        description: Market longitude as listed in the registry.
+        range: [29.63, 40.18]
+
+  - name: market_quotes
+    label: Price quotes from four markets
+    description: |
+      The 2,025 price observations used in the workshop, keeping all commodities
+      reported for market IDs 83, 85, 92 and 2800 from 1 January 2017 onwards.
+    details: |
+      The build selects the listed markets and dates from the WFP price
+      observations and keeps the nine columns below in source row order.
+      It writes the subset directly to `market_quotes.parquet` for the browser
+      exercises with typed dates and the reported prices and units.
+    source:
+      parquet: market_quotes.parquet
+    columns:
+      - name: date
+        type: date
+        description: Date recorded by WFP for the price observation.
+        range: ["2017-01-15", "2026-09-15"]
+      - name: market_id
+        type: number(id)
+        description: WFP market series identifier. The two Dar es Salaam series have different identifiers.
+        examples: [83, 85, 92, 2800]
+        constraints: [foreign_key]
+      - name: market
+        type: enum
+        description: Market label recorded with the price observation.
+        values: [Dar Es Salaam, Iringa Urban, Kinondoni (Tandale), Mwanza]
+      - name: commodity
+        type: string
+        description: Commodity label. The maize forecast uses the rows labelled Maize.
+        examples: [Maize, Rice, Beans, Fuel (diesel)]
+      - name: unit
+        type: enum
+        description: Quantity or volume the price buys. MT refers to a metric tonne.
+        values: [100 KG, L, MT]
+      - name: pricetype
+        type: enum
+        description: Trading level for the quote.
+        values: [Retail, Wholesale]
+      - name: currency
+        type: enum
+        description: Currency of the local-currency price.
+        values: [TZS]
+      - name: priceflag
+        type: enum
+        description: WFP flag indicating that the price was observed.
+        values: [actual]
+      - name: price
+        type: number(quantity)
+        units: TZS per quoted unit
+        description: Nominal price for the quantity given in the unit column.
+        range: [305.73, 360000]
+
+relationships:
+  - join: wfp_prices.market_id = market_registry.market_id
+    cardinality: many-to-one
+    description: Join the price observations to the registry by WFP market identifier.
+  - join: market_quotes.market_id = market_registry.market_id
+    cardinality: many-to-one
+    description: Join the workshop observations to the registry by WFP market identifier.

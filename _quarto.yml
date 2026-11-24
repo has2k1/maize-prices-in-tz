@@ -1,0 +1,63 @@
+project:
+  type: website
+  output-dir: _site
+  preview:
+    port: 25555
+  render:
+    - index.qmd
+    - 01-comparable-quotes.qmd
+    - 02-prices-over-time.qmd
+    - 03-market-coverage.qmd
+    - 04-one-month-forecasts.qmd
+  resources:
+    - data/data-dict.yaml
+    - data/market_quotes.parquet
+    - data/market_registry.parquet
+    - data/wfp_prices.parquet
+    - figures/
+    - fonts/
+    - images/
+    - maize.py
+    - scripts/data-preview.js
+    - "!data/source/**"
+    - "!drafts/**"
+
+website:
+  title: "Maize Prices in Tanzania"
+  description: "Clean, visualise and interpret real market data with Python"
+  search: false
+  page-navigation: true
+  sidebar:
+    style: docked
+    pinned: true
+    collapse-level: 2
+    contents:
+      - section: "Workshop"
+        contents:
+          - href: index.qmd
+            text: Start here
+          - 01-comparable-quotes.qmd
+          - 02-prices-over-time.qmd
+          - 03-market-coverage.qmd
+          - 04-one-month-forecasts.qmd
+  page-footer:
+    left: "PyCon Tanzania"
+    right: "Python in the browser"
+
+format:
+  live-html:
+    theme: theme.scss
+    css: fonts/fraunces.css
+    include-in-header:
+      - text: '<script>history.scrollRestoration = "manual";</script>'
+    include-after-body:
+      - text: '<script src="scripts/data-preview.js"></script>'
+    toc: true
+    grid:
+      sidebar-width: 300px
+      body-width: 1000px
+      margin-width: 300px
+    code-copy: true
+
+execute:
+  enabled: false

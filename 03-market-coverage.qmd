@@ -1,0 +1,299 @@
+---
+title: "3. Market coverage"
+pyodide:
+  packages:
+    - polars
+    - pyarrow
+    - pandas
+    - great-tables==1.0.0
+  resources:
+    - data/market_quotes.parquet
+    - maize.py
+---
+
+Use a table to read the exact prices for April and May 2026. Then use the full record to count the months with quotes and the gaps in each market.
+
+Browse the [Great Tables gallery](https://posit-dev.github.io/great-tables/examples/) and the [gt-extras gallery](https://posit-dev.github.io/gt-extras/examples/) for table ideas.
+
+```{pyodide}
+#| setup: true
+#| exercise: [price-table, price-headings, price-format, price-colour]
+from datetime import date
+
+import polars as pl
+from great_tables import GT
+
+from maize import maize_prices
+
+recent_prices = (
+    maize_prices()
+    .filter(pl.col("month").is_between(date(2026, 4, 1), date(2026, 5, 1)))
+    .with_columns(month=pl.col("month").dt.strftime("%b").str.to_lowercase())
+    .pivot(on="month", index="market", values="price")
+    .select("market", "apr", "may")
+    .sort("market")
+)
+```
+
+## Rows and headings
+
+Click **Show data** to see the three columns. Run the cell to see the table. Then add `rowname_col="market"` to `GT()`. The market names become row labels. Great Tables calls the row labels the *stub*.
+
+```{pyodide}
+#| exercise: price-table
+#| caption: ""
+#| preview: recent_prices
+#| autorun: true
+GT(recent_prices)
+```
+
+Use `tab_header()` to add a heading. Each method returns the table, so you can add more formatting calls inside the same parentheses.
+
+::: {.task}
+Name the prices in the title. Put the year and price unit in the subtitle.
+:::
+
+```{pyodide}
+#| exercise: price-headings
+#| caption: ""
+#| preview: recent_prices
+(
+    GT(recent_prices, rowname_col="market")
+    .tab_header(title=___, subtitle=___)
+)
+```
+
+::: {.hint exercise="price-headings"}
+::: {.callout-note collapse="false"}
+## Hint
+
+Pass a string to each of `title` and `subtitle`.
+:::
+:::
+
+::: {.solution exercise="price-headings"}
+::: {.callout-tip collapse="false"}
+## Solution
+
+```{pyodide}
+#| exercise: price-headings
+#| solution: true
+(
+    GT(recent_prices, rowname_col="market")
+    .tab_header(title="Wholesale maize prices", subtitle="2026 · Shillings per 100 kg")
+)
+```
+:::
+:::
+
+## Column groups and number formats
+
+`cols_label()` sets the column labels. `tab_spanner()` gives columns a shared heading. `fmt_integer()` displays whole numbers with commas, such as 105,000. The data keeps its original values.
+
+::: {.task}
+Give April and May a shared heading and show both as whole numbers. Which market's price fell from April to May?
+:::
+
+```{pyodide}
+#| exercise: price-format
+#| caption: ""
+#| preview: recent_prices
+(
+    GT(recent_prices, rowname_col="market")
+    .tab_header(title="Wholesale maize prices", subtitle="Shillings per 100 kg")
+    .tab_spanner(label="2026", columns=[___, ___])
+    .cols_label(apr="April", may="May")
+    .fmt_integer(columns=[___, ___])
+    .tab_source_note("Source: World Food Programme market quotes.")
+)
+```
+
+::: {.hint exercise="price-format"}
+::: {.callout-note collapse="false"}
+## Hint
+
+Use the column names under **Show data**. The new labels appear only in the finished table.
+:::
+:::
+
+::: {.solution exercise="price-format"}
+::: {.callout-tip collapse="false"}
+## Solution
+
+```{pyodide}
+#| exercise: price-format
+#| solution: true
+(
+    GT(recent_prices, rowname_col="market")
+    .tab_header(title="Wholesale maize prices", subtitle="Shillings per 100 kg")
+    .tab_spanner(label="2026", columns=["apr", "may"])
+    .cols_label(apr="April", may="May")
+    .fmt_integer(columns=["apr", "may"])
+    .tab_source_note("Source: World Food Programme market quotes.")
+)
+```
+
+In Mwanza, the price fell from 105,000 to 98,500.
+:::
+:::
+
+## Colour as a cue
+
+`data_color()` colours each cell based on its value. Use the same range for both months so the same price gets the same colour.
+
+```{pyodide}
+#| exercise: price-colour
+#| caption: ""
+#| preview: recent_prices
+(
+    GT(recent_prices, rowname_col="market")
+    .tab_header(title="Wholesale maize prices", subtitle="2026 · Shillings per 100 kg")
+    .cols_label(apr="April", may="May")
+    .fmt_integer(columns=["apr", "may"])
+    .data_color(
+        columns=["apr", "may"],
+        palette=["#ffffff", "#43996d"],
+        domain=[70_000, 105_000],
+    )
+)
+```
+
+::: {.callout-tip}
+## Try it
+
+Start from the original code for each change.
+
+1. Set `columns="may"` to colour only the May quotes. Which version makes it easier to see a change from April to May?
+2. Replace `"#43996d"` with `"#2166ac"` to use blue. Which quote gets the darkest blue?
+3. Set `palette=["#43996d", "#ffffff"]` to reverse the colours. Which quotes now stand out?
+4. Set `domain=[0, 120_000]` to widen the price range. Do the shades look more alike or less alike?
+5. Remove the `domain` line to let each month use its own price range. Find Kinondoni (Tandale). Why does the same price get a different colour in May?
+6. Add `rows=[2]` to `data_color()` to colour only Mwanza, the third row. How does this change what you notice first?
+7. Replace `"#43996d"` with the dark blue `"#084081"` and run the cell. Then add `autocolor_text=False` to `data_color()` and run it again. Which prices become harder to read?
+8. Add a **May minus April** column and colour the changes.
+
+   - Replace `recent_prices` inside `GT()` with `recent_prices.with_columns(change=pl.col("may") - pl.col("apr"))`.
+   - Add `change="May minus April"` to `cols_label()`.
+   - Add `"change"` to the list in `fmt_integer()`.
+   - Replace the `data_color()` call with this code.
+
+     ```python
+     .data_color(
+         columns="change",
+         palette=["#b2182b", "#ffffff", "#2166ac"],
+         domain=[-250, 250],
+         truncate=True,
+     )
+     ```
+
+   White marks zero. Changes of 250 shillings or more in either direction get the strongest shade.
+
+   Run the cell. Which market shows a rise, a fall or no change?
+:::
+
+## Counts and dates
+
+Use the full price record from the plot. Group by market ID and name. Count the months with quotes and find the first and last quote. `months_in_span()` counts every month from the first quote to the last, including both. Subtract the number of months with a quote to find how many are missing.
+
+```{pyodide}
+#| setup: true
+#| exercise: count-coverage
+import polars as pl
+
+from maize import maize_prices, months_in_span
+
+prices = maize_prices()
+```
+
+```{pyodide}
+#| exercise: count-coverage
+#| caption: ""
+#| preview: prices
+coverage = (
+    prices.group_by("market_id", "market")
+    .agg(
+        first=pl.col("month").min(),
+        last=pl.col("month").max(),
+        quoted=pl.len(),
+    )
+    .with_columns(
+        gaps=months_in_span(pl.col("first"), pl.col("last"))
+        - pl.col("quoted").cast(pl.Int32)
+    )
+    .sort("market")
+)
+coverage
+```
+
+## Market coverage table
+
+Click **Show data** to see the columns in the coverage summary.
+
+```{pyodide}
+#| setup: true
+#| exercise: format-coverage
+import polars as pl
+from great_tables import GT
+
+from maize import maize_prices, months_in_span
+
+coverage = (
+    maize_prices()
+    .group_by("market_id", "market")
+    .agg(first=pl.col("month").min(), last=pl.col("month").max(), quoted=pl.len())
+    .with_columns(
+        gaps=months_in_span(pl.col("first"), pl.col("last"))
+        - pl.col("quoted").cast(pl.Int32)
+    )
+    .sort("market")
+    .drop("market_id")
+    .with_columns(pl.col("first", "last").dt.strftime("%b %Y"))
+)
+```
+
+::: {.task}
+Use market names as row labels. Add a title, clear column labels and a note that explains how you count missing months. Does the market with the fewest months with quotes also have the most missing months?
+:::
+
+```{pyodide}
+#| exercise: format-coverage
+#| caption: ""
+#| preview: coverage
+GT(coverage)
+```
+
+::: {.hint exercise="format-coverage"}
+::: {.callout-note collapse="false"}
+## Hint
+
+Set `rowname_col="market"` in `GT()`. Label the columns with `cols_label()`, for example `cols_label(first="First quote")`. Use `tab_source_note()` to say where the gap count starts and ends.
+:::
+:::
+
+::: {.solution exercise="format-coverage"}
+::: {.callout-tip collapse="false"}
+## Solution
+
+```{pyodide}
+#| exercise: format-coverage
+#| solution: true
+(
+    GT(coverage, rowname_col="market")
+    .tab_header(title="Months with wholesale maize quotes")
+    .cols_label(
+        first="First quote",
+        last="Last quote",
+        quoted="Quoted months",
+        gaps="Missing months",
+    )
+    .tab_source_note(
+        "Missing months are counted within each market's first and last quote."
+    )
+)
+```
+
+Dar Es Salaam has the fewest months with quotes, **39**, and no gaps. Kinondoni (Tandale) has the most missing months, **11**. It covers a longer period, with quotes in **67** months.
+:::
+:::
+
+Keep the table open. In the next part, a missing month can leave us without a price to start a forecast.

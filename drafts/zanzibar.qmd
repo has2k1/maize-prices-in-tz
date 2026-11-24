@@ -1,0 +1,32 @@
+---
+title: "Zanzibar market prices"
+pyodide:
+  packages:
+    - polars
+    - pyarrow
+  resources:
+    - data/zanzibar_retail.parquet
+---
+
+Both Mwanakwerekwe market in Zanzibar and Sabasaba market in Dodoma give tomato prices in Tanzanian shillings per kilogram. What else should you check before comparing the two prices?
+
+The Ministry of Agriculture's bulletin gives average retail prices for 16–20 June 2025. The four rows here show tomato and onion prices at both markets. Wait for Python to load, then run the cell. Change `"Tomatoes"` to `"Onions"` and run it again. Which market had the lower price for each crop? [Four rows (Parquet)](data/zanzibar_retail.parquet) · [Weekly Market Bulletin, Table 6](https://www.kilimo.go.tz/uploads/documents/en-1750672371-Weekly%20Market%20Bulletin%2016-20%20June%2C%202025.pdf#page=8)
+
+```{pyodide}
+#| exercise: compare-zanzibar-retail
+#| caption: ""
+import polars as pl
+
+quotes = pl.read_parquet("data/zanzibar_retail.parquet", use_pyarrow=True)
+comparison = quotes.filter(commodity="Tomatoes").sort("price")
+print(comparison.select("market", "price"))
+```
+
+<details>
+<summary>Worked answer</summary>
+
+Tomatoes were cheaper at Sabasaba, at 1,300 shillings per kg against 2,000 at Mwanakwerekwe. Onions were cheaper at Mwanakwerekwe, at 2,000 shillings per kg against 2,200 at Sabasaba.
+
+For each crop, we checked that the unit, currency, price type and week matched. Use the same checks before comparing maize quotes.
+
+</details>

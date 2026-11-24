@@ -1,0 +1,282 @@
+---
+title: "1. Comparable quotes"
+pyodide:
+  packages:
+    - polars
+    - pyarrow
+    - pandas
+  resources:
+    - data/market_quotes.parquet
+    - maize.py
+---
+
+## First look at the data
+
+The opening chart showed maize prices in one market. The workshop file includes other crops and markets. Use Polars to read it into a table called a `DataFrame`. Each row is one quote. Columns give details such as the date, market and price.
+
+Run the cell. `pl.read_parquet()` reads the file, and `head()` shows the first five rows. Can you find three crops?
+
+```{pyodide}
+#| exercise: inspect-quotes
+#| caption: ""
+import polars as pl
+
+quotes = pl.read_parquet("data/market_quotes.parquet", use_pyarrow=True)
+quotes.head()
+```
+
+## Columns and rows
+
+Each cell below starts with the full table in `quotes`. Use `select()` to choose which columns to show. List their names in the order you want.
+
+```{pyodide}
+#| setup: true
+#| exercise: [select-quotes, market-quotes, count-quotes, count-market-units, make-month, filter-quotes]
+import polars as pl
+
+quotes = pl.read_parquet("data/market_quotes.parquet", use_pyarrow=True)
+quote_categories = quotes.select("commodity", "unit", "pricetype", "currency", "priceflag")
+```
+
+::: {.task}
+Add `"unit"` before `"price"` in `select()`. How much maize is the first quote for?
+:::
+
+```{pyodide}
+#| exercise: select-quotes
+#| caption: ""
+#| preview: quotes
+quotes.select("date", "market", "commodity", "price").head()
+```
+
+::: {.solution exercise="select-quotes"}
+::: {.callout-tip collapse="false"}
+## Solution
+
+```{pyodide}
+#| exercise: select-quotes
+#| solution: true
+quotes.select("date", "market", "commodity", "unit", "price").head()
+```
+
+The first quote is for 100 kg of maize in Dar Es Salaam.
+:::
+:::
+
+`filter()` chooses rows. Here it keeps only maize quotes from Iringa Urban. `select()` chooses the columns and `head()` shows the first five rows.
+
+::: {.task}
+Run the cell for Iringa Urban. Change the market to `"Mwanza"` and run it again. Use `unit` to check that both quotes are for the same weight. Which market had the higher price in January 2017?
+:::
+
+```{pyodide}
+#| exercise: market-quotes
+#| caption: ""
+#| preview: quotes
+(
+    quotes.filter(commodity="Maize", market="Iringa Urban")
+    .select("date", "market", "unit", "price")
+    .head()
+)
+```
+
+::: {.solution exercise="market-quotes"}
+::: {.callout-tip collapse="false"}
+## Solution
+
+```{pyodide}
+#| exercise: market-quotes
+#| solution: true
+(
+    quotes.filter(commodity="Maize", market="Mwanza")
+    .select("date", "market", "unit", "price")
+    .head()
+)
+```
+
+Mwanza's January quote was 103,333.33 shillings per 100 kg. Iringa Urban's was 83,000 for the same quantity.
+:::
+:::
+
+## Price categories
+
+Do all the maize quotes use the same unit? For the forecast, we need recorded wholesale prices for 100 kg of maize in shillings. Leave out the market filter to check all four markets.
+
+`group_by()` puts quotes with the same unit, price type, currency and flag in one group. `.len()` counts the quotes in each group, and `sort()` puts the largest group first.
+
+```{pyodide}
+#| exercise: count-quotes
+#| caption: ""
+#| preview: [quotes, quotes.filter(commodity="Maize")]
+maize = quotes.filter(commodity="Maize")
+
+(
+    maize.group_by("unit", "pricetype", "currency", "priceflag")
+    .len()
+    .sort("len", descending=True)
+)
+```
+
+Both groups contain recorded wholesale prices in shillings. There are 334 quotes for 100 kg and two for a tonne (`MT`). Keep the 100 kg quotes so every point on the chart is for the same weight.
+
+### Quote counts by market
+
+::: {.task}
+Add `"market"` to `group_by()` to count quotes by unit and market. Which market reported the tonne quotes? Did it also report quotes for 100 kg?
+:::
+
+```{pyodide}
+#| exercise: count-market-units
+#| caption: ""
+#| preview: quotes
+maize = quotes.filter(commodity="Maize")
+maize.group_by("unit").len().sort("len", descending=True)
+```
+
+::: {.solution exercise="count-market-units"}
+::: {.callout-tip collapse="false"}
+## Solution
+
+```{pyodide}
+#| exercise: count-market-units
+#| solution: true
+maize = quotes.filter(commodity="Maize")
+maize.group_by("unit", "market").len().sort("len", descending=True)
+```
+
+Iringa Urban reported both tonne quotes and 114 quotes for 100 kg, including the January 2017 quote.
+:::
+:::
+
+## Monthly prices
+
+Use a `month` column to check for more than one quote per market per month. `pl.col("date")` picks the date column. `.dt.truncate("1mo")` takes each date back to the first of its month, so 15 January 2017 becomes 1 January 2017. `with_columns()` saves the result as `month`.
+
+::: {.task}
+Run the cell to copy `date` into `month`. Add `.dt.truncate("1mo")` to `pl.col("date")` and compare the columns again. A *market-month* is one market in one month. Would quotes from Iringa Urban on 1 and 15 January 2017 count as one market-month or two?
+:::
+
+```{pyodide}
+#| exercise: make-month
+#| caption: ""
+#| preview: [quotes, iringa]
+iringa = quotes.filter(commodity="Maize", market="Iringa Urban", unit="100 KG")
+(
+    iringa.with_columns(month=pl.col("date"))
+    .select("date", "month", "price")
+    .head(3)
+)
+```
+
+::: {.solution exercise="make-month"}
+::: {.callout-tip collapse="false"}
+## Solution
+
+```{pyodide}
+#| exercise: make-month
+#| solution: true
+iringa = quotes.filter(commodity="Maize", market="Iringa Urban", unit="100 KG")
+(
+    iringa.with_columns(month=pl.col("date").dt.truncate("1mo"))
+    .select("date", "month", "price")
+    .head(3)
+)
+```
+
+They count as one market-month. Both quotes have the same market ID and the same value in `month`.
+:::
+:::
+
+### Comparable monthly quotes
+
+Use the same month calculation on all the quotes you can compare. Check that each market has one row per month with a quote.
+
+::: {.task}
+Add the unit, price type, currency and flag to `filter()`. Copy the values exactly as shown in the group counts. Check for **334 rows** and **334 different market-months**. Every price should be present and greater than zero. Why does one quote per market per month matter when you draw a line through the quotes?
+:::
+
+```{pyodide}
+#| exercise: filter-quotes
+#| caption: ""
+#| preview: [quotes, prices]
+prices = (
+    quotes.filter(commodity="Maize")
+    .with_columns(month=pl.col("date").dt.truncate("1mo"))
+    .select("market_id", "market", "month", "price")
+)
+
+print(f"Rows retained: {prices.height}")
+print(f"Distinct market-months: {prices.select('market_id', 'month').n_unique()}")
+invalid = pl.col("price").is_null() | (pl.col("price") <= 0)
+print(f"Missing or non-positive prices: {prices.filter(invalid).height}")
+```
+
+::: {.hint exercise="filter-quotes"}
+::: {.callout-note collapse="false"}
+## Hint
+
+Add arguments next to `commodity="Maize"`. Polars keeps a row only if it meets every condition.
+:::
+:::
+
+::: {.solution exercise="filter-quotes"}
+::: {.callout-tip collapse="false"}
+## Solution
+
+```{pyodide}
+#| exercise: filter-quotes
+#| solution: true
+prices = (
+    quotes.filter(
+        commodity="Maize",
+        unit="100 KG",
+        pricetype="Wholesale",
+        currency="TZS",
+        priceflag="actual",
+    )
+    .with_columns(month=pl.col("date").dt.truncate("1mo"))
+    .select("market_id", "market", "month", "price")
+)
+
+print(f"Rows retained: {prices.height}")
+print(f"Distinct market-months: {prices.select('market_id', 'month').n_unique()}")
+invalid = pl.col("price").is_null() | (pl.col("price") <= 0)
+print(f"Missing or non-positive prices: {prices.filter(invalid).height}")
+```
+
+The matching counts show one price per market per month with a quote. The starting data also passed that check. We needed the group counts to find the two tonne quotes.
+:::
+:::
+
+## Tables for the first plots
+
+Start with the same 334 comparable quotes as in the worked answer. Use `is_between()` to keep January to May 2026, including both months. Select the three columns for the plots, then filter `recent` to get just the Iringa Urban quotes.
+
+```{pyodide}
+#| setup: true
+#| exercise: make-plot-tables
+from maize import maize_prices
+
+prices = maize_prices()
+```
+
+Run the cell to create both tables and display `recent`. Open **Show data** and choose `iringa` to see the single-market table.
+
+```{pyodide}
+#| exercise: make-plot-tables
+#| caption: ""
+#| preview: [prices, recent, iringa]
+from datetime import date
+
+import polars as pl
+
+recent = prices.filter(
+    pl.col("month").is_between(date(2026, 1, 1), date(2026, 5, 1))
+).select("month", "market", "price")
+iringa = recent.filter(market="Iringa Urban")
+recent
+```
+
+`recent` has 15 quotes, one per month in each of the three markets. `iringa` has five, one per month in Iringa Urban.
+
+Use these tables in [Prices over time](02-prices-over-time.qmd). Start with `iringa`, then use `recent` to compare markets.
